@@ -1,0 +1,152 @@
+#include <dht.h>
+#include <Servo.h>    // Add Servo Motor library.
+#define TrigPIN 9// Assign PIN A1 as TrigPIN (Connect Arduino UNO "A1" PIN with Ultrasonic Sonar Sensor "Trig" PIN).
+#define EchoPIN 3  // Assign PIN A2 as EchoPIN (Connect Arduino UNO "A2" PIN with Ultrasonic Sonar Sensor "Trig" PIN).
+//#define TEMPPIN  
+
+int EnA = 11; //Left motor
+int EnB = 5; //Right motor
+int In1 = 9;
+int In2 = 8;
+int In3 = 7;
+int In4 = 6;
+
+Servo SER1; // Create Servo object to control Servo.
+int Search (void) {                   // Integer type variable declaration.
+  float Duration = 0.0;               // Float type variable declaration.
+  float CM = 0.0;                     // Float type variable declaration.
+  digitalWrite (TrigPIN, LOW);        // TrigPIN output as 0V (Logic low level).
+  delayMicroseconds (2);              // Delay for 2us, Send 10 us high pulse to Ultrasonic Sonar Sensor "TrigPIN".
+  digitalWrite (TrigPIN, HIGH);       // TrigPIN output as 5V (Logic high level).
+  delayMicroseconds (10);             // Delay for 10us.
+  digitalWrite (TrigPIN, LOW);        // TrigPIN output as 0V (Logic low level).
+  Duration = pulseIn (EchoPIN, HIGH); // Start counting time, Upto again EchoPIN back to logic "High Level" and puting the "Time" into variable called "Duration".
+  //CM = (Duration/58.8);               // Convert Distance into CM.
+  //CM = (Duration/2)*29.1;
+  CM = Duration*0.034/2;
+  return CM;                          // Return to CM.
+}
+int RightDistance, LeftDistance;  // Distances on either side.
+float Distance = 0.00;            // Float type variable declaration.
+void setup () {               // Setup loop.
+  pinMode (TrigPIN, OUTPUT);  // Declare TrigPIN as "Output PIN".
+  pinMode (EchoPIN, INPUT);   // Declare EchoPIN as "Output PIN".
+//  pinMode (LEDBPIN, OUTPUT);  // Declare LEDBPIN as "Output PIN".
+ // pinMode (LEDGPIN, OUTPUT);  // Declare LEDGPIN as "Output PIN".
+ // pinMode (LEDRPIN, OUTPUT);  // Declare LEDRPIN as "Output PIN".
+  pinMode (EnA,OUTPUT);
+  pinMode (EnB,OUTPUT);
+  pinMode (In1,OUTPUT);
+  pinMode (In2,OUTPUT);
+  pinMode (In3,OUTPUT);
+  pinMode (In4,OUTPUT);
+  Serial.begin(9600);
+  SER1.attach (10);           // Attaches the Servo on pin 10 (SER1 on the Adafruit Motor Shield for Arduino kit to the Servo object).
+}
+void loop () {                                    // Main loop.
+  SER1.write (80);                                // Tells the Servo to position at 80 degrees (Facing forward).
+  delay (100);                                    // Delay for 0.1s.
+  Distance = Search ();                           // Measuring the Distance in CM.
+  if (Distance < 30) {                            // If obstacle found in 30cm.
+    analogWrite(EnA,100);
+    analogWrite(EnB,104);
+    
+  Serial.println("Looks: " + (String)Distance);
+    ChangePath ();                                // If forward is blocked Change direction.
+  }
+  else if ((Distance >= 30) && (Distance < 60)) { // If obstacle found between 30cm to 60cm.
+    analogWrite(EnA,130);
+    analogWrite(EnB,135);
+    Forward ();                                   // Robot move to Forward direction.
+  }
+  else if ((Distance >= 60) && (Distance < 90)) { // If obstacle found between 60cm to 90cm.
+    analogWrite(EnA,170);
+    analogWrite(EnB,177);
+    Forward ();                                   // Robot move to Forward direction.
+  }
+  else {                                          // If obstacle cannot be found in 90cm.
+    analogWrite(EnA,200);
+    analogWrite(EnB,208);
+    Forward ();                                   // Robot move to Forward direction.
+  }
+  Serial.println(Distance);
+  delay(200);
+}
+void ChangePath () {         // Path Change loop.
+  Stop ();                   // Robot Stop.
+  Backward ();               // Robot run Backward direction.
+  Stop ();                   // Robot Stop.
+  SER1.write (12);           // Check Distance to the Right.
+  delay (500);               // Delay for 0.5s.
+  RightDistance = Search (); // Set Right Distance.
+  delay (500);               // Delay for 0.5s.
+  SER1.write (160);          // Check Distance to the Left.
+  delay (1000);              // Delay for 1s.
+  LeftDistance = Search ();  // Set Left Distance.
+  delay (500);               // Delay for 0.5s.
+  SER1.write (80);           // Return to center.
+  delay (500);               // Delay for 0.5s.
+  CompareDistance ();        // Find the longest distance.
+}
+void CompareDistance () {                   // Distance Compare loop.
+  if (RightDistance > LeftDistance) {       // If Right is less obstructed.
+     TurnRight ();                          // Robot Turn into Right direction.
+    }
+  else if (LeftDistance > RightDistance) {  // If Left is less obstructed.
+      TurnLeft ();                          // Robot Turn into Left direction.
+    }
+  else {
+      if (RightDistance < 30)                                       
+      TurnAround ();
+      else TurnRight();
+    }
+}
+void Forward () {   // Forward loop.
+  digitalWrite(In1,HIGH);
+  digitalWrite (In3,HIGH);
+  digitalWrite (In2, LOW);
+  digitalWrite (In4,LOW);
+}
+void Backward () {
+  // Backward loop.
+  analogWrite(EnA,150);
+  analogWrite(EnB,156);
+  digitalWrite(In2,HIGH);
+  digitalWrite (In4,HIGH);
+  digitalWrite (In1, LOW);
+  digitalWrite (In3,LOW);
+  delay (500);       // Delay for 1s.
+}
+void TurnRight () {
+  analogWrite(EnA,150);
+  analogWrite(EnB,0);
+  digitalWrite(In1,LOW);
+  digitalWrite (In2,HIGH);
+  digitalWrite (In3, HIGH);
+  digitalWrite (In4,LOW);
+  
+  delay (300);                // Delay for 0.7s.
+}
+void TurnLeft () {            // Left Turn loop.
+  analogWrite(EnA,0);
+  analogWrite(EnB,156);
+  digitalWrite(In1,HIGH);
+  digitalWrite (In2,LOW);
+  digitalWrite (In3, LOW);
+  digitalWrite (In4,HIGH);
+  delay (300);                // Delay for 0.7s.
+}
+void TurnAround () {          // Trun Around loop.
+  analogWrite(EnA,-150);
+  analogWrite(EnB,156);
+  digitalWrite(In1,LOW);
+  digitalWrite (In2,HIGH);
+  digitalWrite (In3, HIGH);
+  digitalWrite (In4,LOW);
+  delay (700);               // Delay for 2.1s.
+}
+void Stop () {      // Stop loop.
+  analogWrite(EnA,0);
+  analogWrite(EnB,0);
+  delay (100);      // Delay for 0.1s.
+}
